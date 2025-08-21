@@ -297,8 +297,25 @@ public class SelectionOperatorUtils {
     List<Object[]> rowsToMerge = blockToMerge.getRows();
     int numRowsToMerge = Math.min(selectionSize - mergedRows.size(), rowsToMerge.size());
     if (numRowsToMerge > 0) {
-      mergedRows.addAll(rowsToMerge.subList(0, numRowsToMerge));
+      if (mergedRows.size() != 0 && mergedRows.get(0)[0] instanceof Integer && rowsToMerge.size() != 0 && rowsToMerge.get(0)[0] instanceof Long) {
+        for (int i = 0; i < mergedRows.size(); i++) {
+          mergedRows.set(i, convertRow(mergedRows.get(i)));
+        }
+        mergedRows.addAll(rowsToMerge.subList(0, numRowsToMerge));
+      } else if (mergedRows.size() != 0 && mergedRows.get(0)[0] instanceof Long && rowsToMerge.size() != 0 && rowsToMerge.get(0)[0] instanceof Integer) {
+        for (int i = 0; i < numRowsToMerge; i++) {
+          mergedRows.add(convertRow(rowsToMerge.get(i)));
+        }
+      } else {
+        mergedRows.addAll(rowsToMerge.subList(0, numRowsToMerge));
+      }
     }
+  }
+
+  private static Object[] convertRow(Object[] row) {
+    return Arrays.stream(row)
+        .map(obj -> obj instanceof Integer ? ((Integer) obj).longValue() : obj)
+        .toArray();
   }
 
   /**

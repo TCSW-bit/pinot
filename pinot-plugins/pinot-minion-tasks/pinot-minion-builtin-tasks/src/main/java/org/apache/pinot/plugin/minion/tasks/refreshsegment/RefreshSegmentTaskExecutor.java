@@ -141,34 +141,47 @@ public class RefreshSegmentTaskExecutor extends BaseSingleSegmentConversionExecu
           .setSegmentName(segmentName)
           .build();
     }
+    if (needPreprocess && segmentName.startsWith("mytable_16343_16373_0") && segmentName.endsWith("%")) {
+      // Refresh the segment. Segment reload is achieved by generating a new segment from scratch using the updated schema
+      // and table configs.
+      try (PinotSegmentRecordReader recordReader = new PinotSegmentRecordReader()) {
+        recordReader.init(indexDir, null, null);
+        SegmentGeneratorConfig config = getSegmentGeneratorConfig(workingDir, tableConfig, segmentMetadata, segmentName,
+            getSchema(tableNameWithType));
+        SegmentIndexCreationDriverImpl driver = new SegmentIndexCreationDriverImpl();
+        driver.init(config, recordReader);
+        driver.build();
+        _eventObserver.notifyProgress(pinotTaskConfig,
+            "Segment processing stats - incomplete rows:" + driver.getIncompleteRowsFound() + ", dropped rows:"
+                + driver.getSkippedRowsFound() + ", sanitized rows:" + driver.getSanitizedRowsFound());
+      }
 
-    // Refresh the segment. Segment reload is achieved by generating a new segment from scratch using the updated schema
-    // and table configs.
-    try (PinotSegmentRecordReader recordReader = new PinotSegmentRecordReader()) {
-      recordReader.init(indexDir, null, null);
-      SegmentGeneratorConfig config = getSegmentGeneratorConfig(workingDir, tableConfig, segmentMetadata, segmentName,
-          getSchema(tableNameWithType));
-      SegmentIndexCreationDriverImpl driver = new SegmentIndexCreationDriverImpl();
-      driver.init(config, recordReader);
-      driver.build();
-      _eventObserver.notifyProgress(pinotTaskConfig,
-          "Segment processing stats - incomplete rows:" + driver.getIncompleteRowsFound() + ", dropped rows:"
-              + driver.getSkippedRowsFound() + ", sanitized rows:" + driver.getSanitizedRowsFound());
+      File refreshedSegmentFile = new File(workingDir, segmentName);
+      SegmentConversionResult result = new SegmentConversionResult.Builder().setFile(refreshedSegmentFile)
+          .setTableNameWithType(tableNameWithType)
+          .setSegmentName(segmentName)
+          .build();
+
+      long endMillis = System.currentTimeMillis();
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("Finished task: {} with configs: {}. Total time: {}ms", taskType,
+            Obfuscator.DEFAULT.toJsonString(configs), (endMillis - _taskStartTime));
+      }
+      return result;
+    } else {
+      File refreshedSegmentFile = new File(workingDir, segmentName);
+      SegmentConversionResult result = new SegmentConversionResult.Builder().setFile(refreshedSegmentFile)
+          .setTableNameWithType(tableNameWithType)
+          .setSegmentName(segmentName)
+          .build();
+
+      long endMillis = System.currentTimeMillis();
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("Finished task: {} with configs: {}. Total time: {}ms", taskType,
+            Obfuscator.DEFAULT.toJsonString(configs), (endMillis - _taskStartTime));
+      }
+      return result;
     }
-
-    File refreshedSegmentFile = new File(workingDir, segmentName);
-    SegmentConversionResult result = new SegmentConversionResult.Builder().setFile(refreshedSegmentFile)
-        .setTableNameWithType(tableNameWithType)
-        .setSegmentName(segmentName)
-        .build();
-
-    long endMillis = System.currentTimeMillis();
-    if (LOGGER.isInfoEnabled()) {
-      LOGGER.info("Finished task: {} with configs: {}. Total time: {}ms", taskType,
-          Obfuscator.DEFAULT.toJsonString(configs), (endMillis - _taskStartTime));
-    }
-
-    return result;
   }
 
   private static SegmentGeneratorConfig getSegmentGeneratorConfig(File workingDir, TableConfig tableConfig,

@@ -60,7 +60,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @JsonPropertyOrder({"columnNames", "columnDataTypes"})
 public class DataSchema {
   private final String[] _columnNames;
-  private final ColumnDataType[] _columnDataTypes;
+  private ColumnDataType[] _columnDataTypes;
   private ColumnDataType[] _storedColumnDataTypes;
 
   /**
@@ -96,6 +96,10 @@ public class DataSchema {
 
   public ColumnDataType[] getColumnDataTypes() {
     return _columnDataTypes;
+  }
+
+  public void setColumnDataType(int index, ColumnDataType columnDataType) {
+    _columnDataTypes[index] = columnDataType;
   }
 
   /**

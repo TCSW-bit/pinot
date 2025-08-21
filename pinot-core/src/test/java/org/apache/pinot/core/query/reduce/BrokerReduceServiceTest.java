@@ -123,4 +123,127 @@ public class BrokerReduceServiceTest {
 
     brokerReduceService.shutDown();
   }
+
+  @Test
+  public void testOfflineTableReduceIntAndLongSchema()
+      throws IOException {
+    BrokerReduceService brokerReduceService =
+        new BrokerReduceService(new PinotConfiguration(Map.of(Broker.CONFIG_OF_MAX_REDUCE_THREADS_PER_QUERY, 2)));
+    BrokerRequest brokerRequest =
+        CalciteSqlCompiler.compileToBrokerRequest("SELECT col1 FROM testTable where col1 = 1");
+    // Create a schema and dataTable with LONG dataType
+    DataSchema dataSchemaLong =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.LONG});
+    DataTableBuilder dataTableBuilderLong = DataTableBuilderFactory.getDataTableBuilder(dataSchemaLong);
+    dataTableBuilderLong.startRow();
+    dataTableBuilderLong.setColumn(0, 1L);
+    dataTableBuilderLong.finishRow();
+    // Create a schema and dataTable with INT dataType
+    DataSchema dataSchemaInt =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.INT});
+    DataTableBuilder dataTableBuilderInt = DataTableBuilderFactory.getDataTableBuilder(dataSchemaInt);
+    dataTableBuilderInt.startRow();
+    dataTableBuilderInt.setColumn(0, 1);
+    dataTableBuilderInt.finishRow();
+
+    DataTable dataTableLong = dataTableBuilderLong.build();
+    DataTable dataTableInt = dataTableBuilderInt.build();
+
+    Map<ServerRoutingInstance, DataTable> dataTableMap = new HashMap<>();
+    ServerRoutingInstance instance0 = new ServerRoutingInstance("localhost", 0, TableType.OFFLINE);
+    dataTableMap.put(instance0, dataTableLong);
+    ServerRoutingInstance instance1 = new ServerRoutingInstance("localhost", 1, TableType.OFFLINE);
+    dataTableMap.put(instance1, dataTableInt);
+    BrokerResponseNative brokerResponse =
+        brokerReduceService.reduceOnDataTable(brokerRequest, brokerRequest, dataTableMap, 10_000,
+            mock(BrokerMetrics.class));
+    brokerReduceService.shutDown();
+
+    // BrokerReducer should NOT ignore different schema and merge the dataTable without exception
+    List<QueryProcessingException> exceptions = brokerResponse.getExceptions();
+    assertEquals(brokerResponse.getResultTable().getRows().size(), 2);
+    assertEquals(exceptions.size(), 0);
+  }
+
+  @Test
+  public void testRealtimeTableReduceIntAndLongSchema()
+      throws IOException {
+    BrokerReduceService brokerReduceService =
+        new BrokerReduceService(new PinotConfiguration(Map.of(Broker.CONFIG_OF_MAX_REDUCE_THREADS_PER_QUERY, 2)));
+    BrokerRequest brokerRequest =
+        CalciteSqlCompiler.compileToBrokerRequest("SELECT col1 FROM testTable where col1 = 1");
+    // Create a schema and dataTable with LONG dataType
+    DataSchema dataSchemaLong =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.LONG});
+    DataTableBuilder dataTableBuilderLong = DataTableBuilderFactory.getDataTableBuilder(dataSchemaLong);
+    dataTableBuilderLong.startRow();
+    dataTableBuilderLong.setColumn(0, 1L);
+    dataTableBuilderLong.finishRow();
+    // Create a schema and dataTable with INT dataType
+    DataSchema dataSchemaInt =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.INT});
+    DataTableBuilder dataTableBuilderInt = DataTableBuilderFactory.getDataTableBuilder(dataSchemaInt);
+    dataTableBuilderInt.startRow();
+    dataTableBuilderInt.setColumn(0, 1);
+    dataTableBuilderInt.finishRow();
+
+    DataTable dataTableLong = dataTableBuilderLong.build();
+    DataTable dataTableInt = dataTableBuilderInt.build();
+
+    Map<ServerRoutingInstance, DataTable> dataTableMap = new HashMap<>();
+    ServerRoutingInstance instance0 = new ServerRoutingInstance("localhost", 0, TableType.REALTIME);
+    dataTableMap.put(instance0, dataTableLong);
+    ServerRoutingInstance instance1 = new ServerRoutingInstance("localhost", 1, TableType.REALTIME);
+    dataTableMap.put(instance1, dataTableInt);
+    BrokerResponseNative brokerResponse =
+        brokerReduceService.reduceOnDataTable(brokerRequest, brokerRequest, dataTableMap, 10_000,
+            mock(BrokerMetrics.class));
+    brokerReduceService.shutDown();
+
+    // BrokerReducer should NOT ignore different schema and merge the dataTable without exception
+    List<QueryProcessingException> exceptions = brokerResponse.getExceptions();
+    assertEquals(brokerResponse.getResultTable().getRows().size(), 2);
+    assertEquals(exceptions.size(), 0);
+  }
+
+  @Test
+  public void testHybridTableReduceDifferentSchema()
+      throws IOException {
+    BrokerReduceService brokerReduceService =
+        new BrokerReduceService(new PinotConfiguration(Map.of(Broker.CONFIG_OF_MAX_REDUCE_THREADS_PER_QUERY, 2)));
+    BrokerRequest brokerRequest =
+        CalciteSqlCompiler.compileToBrokerRequest("SELECT col1 FROM testTable where col1 = 1");
+    // Create a schema and dataTable with LONG dataType
+    DataSchema dataSchemaLong =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.LONG});
+    DataTableBuilder dataTableBuilderLong = DataTableBuilderFactory.getDataTableBuilder(dataSchemaLong);
+    dataTableBuilderLong.startRow();
+    dataTableBuilderLong.setColumn(0, 1L);
+    dataTableBuilderLong.finishRow();
+    // Create a schema and dataTable with INT dataType
+    DataSchema dataSchemaInt =
+        new DataSchema(new String[]{"col1"}, new ColumnDataType[]{ColumnDataType.INT});
+    DataTableBuilder dataTableBuilderInt = DataTableBuilderFactory.getDataTableBuilder(dataSchemaInt);
+    dataTableBuilderInt.startRow();
+    dataTableBuilderInt.setColumn(0, 1);
+    dataTableBuilderInt.finishRow();
+
+    DataTable dataTableLong = dataTableBuilderLong.build();
+    DataTable dataTableInt = dataTableBuilderInt.build();
+
+    Map<ServerRoutingInstance, DataTable> dataTableMap = new HashMap<>();
+    //One instance returns OFFLINE result and one instance returns REALTIME result
+    ServerRoutingInstance instance0 = new ServerRoutingInstance("localhost", 0, TableType.OFFLINE);
+    dataTableMap.put(instance0, dataTableLong);
+    ServerRoutingInstance instance1 = new ServerRoutingInstance("localhost", 1, TableType.REALTIME);
+    dataTableMap.put(instance1, dataTableInt);
+    BrokerResponseNative brokerResponse =
+        brokerReduceService.reduceOnDataTable(brokerRequest, brokerRequest, dataTableMap, 10_000,
+            mock(BrokerMetrics.class));
+    brokerReduceService.shutDown();
+    // BrokerReducer should NOT ignore different schema and merge the dataTable without exception
+    List<QueryProcessingException> exceptions = brokerResponse.getExceptions();
+    assertEquals(brokerResponse.getResultTable().getRows().size(), 2);
+    assertEquals(exceptions.size(), 0);
+  }
 }

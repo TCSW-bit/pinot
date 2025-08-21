@@ -125,8 +125,22 @@ public abstract class BaseDistinctAggregateAggregationFunction<T extends Compara
 
     Tracing.ThreadAccountantOps.sampleAndCheckInterruption();
 
-    intermediateResult1.addAll(intermediateResult2);
+    Object firstInSet1 = intermediateResult1.iterator().next();
+    Object firstInSet2 = intermediateResult2.iterator().next();
+
+    if (firstInSet1 instanceof Integer && firstInSet2 instanceof Long) {
+      mergeIntLongSet(intermediateResult1, intermediateResult2);
+      intermediateResult1 = intermediateResult2;
+    } else if (firstInSet1 instanceof Long && firstInSet2 instanceof Integer) {
+      mergeIntLongSet(intermediateResult2, intermediateResult1);
+    } else {
+      intermediateResult1.addAll(intermediateResult2);
+    }
     return intermediateResult1;
+  }
+
+  public static void mergeIntLongSet(Set<Integer> intSet, Set<Long> longSet) {
+    intSet.forEach(i -> longSet.add(i.longValue()));
   }
 
   @Override

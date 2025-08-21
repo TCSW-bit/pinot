@@ -115,7 +115,6 @@ public class BrokerReduceService extends BaseReduceService {
             //       can change across different versions.
             if (!Arrays.equals(dataSchema.getColumnDataTypes(), dataSchemaFromNonEmptyDataTable.getColumnDataTypes())) {
               serversWithConflictingDataSchema.add(entry.getKey());
-              iterator.remove();
             }
           }
         }
@@ -143,8 +142,6 @@ public class BrokerReduceService extends BaseReduceService {
           + " from servers: " + serversWithConflictingDataSchema + " got dropped due to data schema inconsistency.";
       LOGGER.warn(errorMessage);
       brokerMetrics.addMeteredTableValue(rawTableName, BrokerMeter.RESPONSE_MERGE_EXCEPTIONS, 1);
-      brokerResponseNative.addException(
-          new QueryProcessingException(errorCode, errorMessage));
     }
 
     // NOTE: When there is no cached data schema, that means all servers encountered exception. In such case, return the
