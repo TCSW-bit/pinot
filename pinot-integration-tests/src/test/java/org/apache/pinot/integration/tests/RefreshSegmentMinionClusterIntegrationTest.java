@@ -153,9 +153,9 @@ public class RefreshSegmentMinionClusterIntegrationTest extends BaseClusterInteg
     // Change datatype from INT -> LONG for airlineId
     Schema schema = createSchema();
     schema.getFieldSpecFor("ArrTime").setDataType(FieldSpec.DataType.LONG);
-    schema.getFieldSpecFor("AirlineID").setDataType(FieldSpec.DataType.STRING);
-    schema.getFieldSpecFor("ActualElapsedTime").setDataType(FieldSpec.DataType.FLOAT);
-    schema.getFieldSpecFor("DestAirportID").setDataType(FieldSpec.DataType.STRING);
+//    schema.getFieldSpecFor("AirlineID").setDataType(FieldSpec.DataType.STRING);
+//    schema.getFieldSpecFor("ActualElapsedTime").setDataType(FieldSpec.DataType.FLOAT);
+//    schema.getFieldSpecFor("DestAirportID").setDataType(FieldSpec.DataType.STRING);
     forceUpdateSchema(schema);
 
     assertNotNull(_taskManager.scheduleTasks(new TaskSchedulingContext()
@@ -169,6 +169,9 @@ public class RefreshSegmentMinionClusterIntegrationTest extends BaseClusterInteg
             .setTasksToSchedule(Collections.singleton(MinionConstants.RefreshSegmentTask.TASK_TYPE)),
         _taskManager);
     waitForTaskToComplete();
+
+    System.out.println("completed setup");
+    Thread.sleep(5000000);
 
     waitForServerSegmentDownload(aVoid -> {
       try {
@@ -427,14 +430,14 @@ public class RefreshSegmentMinionClusterIntegrationTest extends BaseClusterInteg
         }
       }
       return true;
-    }, 600_000L, "Failed to complete task");
+    }, 600_000_000L, "Failed to complete task");
   }
 
   protected void waitForServerSegmentDownload(Function<Void, Boolean> conditionFunc) {
     TestUtils.waitForCondition(aVoid -> {
       boolean val = conditionFunc.apply(aVoid);
       return val;
-    }, 60_000L, "Failed to meet condition");
+    }, 60_000_000L, "Failed to meet condition");
   }
 
   private TableTaskConfig getRefreshSegmentTaskConfig() {

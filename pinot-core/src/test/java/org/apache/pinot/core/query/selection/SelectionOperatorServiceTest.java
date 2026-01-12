@@ -26,11 +26,14 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pinot.common.datatable.DataTable;
 import org.apache.pinot.common.request.context.ExpressionContext;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.common.utils.DataSchema.ColumnDataType;
 import org.apache.pinot.core.operator.blocks.results.SelectionResultsBlock;
+import org.apache.pinot.core.operator.combine.merger.SelectionOnlyResultsBlockMerger;
+import org.apache.pinot.core.operator.combine.merger.SelectionOrderByResultsBlockMerger;
 import org.apache.pinot.core.query.request.context.QueryContext;
 import org.apache.pinot.core.query.request.context.utils.QueryContextConverterUtils;
 import org.apache.pinot.core.query.utils.OrderByComparatorFactory;
@@ -205,5 +208,80 @@ public class SelectionOperatorServiceTest {
     DataTable dataTable = SelectionOperatorUtils.getDataTableFromRows(rows, _dataSchema, false);
     assertTrue(Arrays.deepEquals(SelectionOperatorUtils.extractRowFromDataTable(dataTable, 0), _row1));
     assertTrue(Arrays.deepEquals(SelectionOperatorUtils.extractRowFromDataTable(dataTable, 1), _row2));
+  }
+
+  @Test
+  public void testRowsMergeWithoutOrderingWithIntAndLongSchema() {
+    String[] _columnNames = { "int" };
+    ColumnDataType[] _columnDataTypesInt = { ColumnDataType.INT };
+    DataSchema _dataSchemaInt = new DataSchema(_columnNames, _columnDataTypesInt);
+    String[] _columnNamesLong = { "int" };
+    final ColumnDataType[] _columnDataTypesLong = { ColumnDataType.LONG };
+    DataSchema _dataSchemaLong = new DataSchema(_columnNamesLong, _columnDataTypesLong);
+
+    Object[] _rowInt1 = { 1 };
+    Object[] _rowInt2 = { 1 };
+    Object[] _rowLong1 = { 1L };
+    Object[] _rowLong2 = { 1L };
+
+    QueryContext queryContext = QueryContextConverterUtils.getQueryContext(
+        "SELECT int FROM testTable limit 3");
+    List<Object[]> mergedRows = new ArrayList<>(1);
+    mergedRows.add(_rowInt1);
+    mergedRows.add(_rowInt2);
+    SelectionResultsBlock mergedBlock = new SelectionResultsBlock(_dataSchemaInt, mergedRows, queryContext);
+    List<Object[]> rowsToMerge = new ArrayList<>(1);
+    rowsToMerge.add(_rowLong1);
+    rowsToMerge.add(_rowLong2);
+    SelectionResultsBlock blockToMerge = new SelectionResultsBlock(_dataSchemaLong, rowsToMerge, queryContext);
+
+    // Test SelectionOnlyResultsBlockMerger converts INT to LONG schema
+    SelectionOnlyResultsBlockMerger selectionOnlyResultsBlockMerger = new SelectionOnlyResultsBlockMerger(queryContext);
+    selectionOnlyResultsBlockMerger.mergeResultsBlocks(mergedBlock, blockToMerge);
+    assertEquals(mergedBlock.getDataSchema(), _dataSchemaLong);
+
+    // Test SelectionOperatorUtils converts and merges INT to LONG rows
+    SelectionOperatorUtils.mergeWithoutOrdering(mergedBlock, blockToMerge, 3);
+    assertEquals(mergedRows.size(), 3);
+    assertEquals(mergedRows.get(0)[0], 1L);
+    assertEquals(mergedRows.get(1)[0], 1L);
+    assertEquals(mergedRows.get(2)[0], 1L);
+  }
+
+  public void testRowsMergeWithOrderingWithIntAndLongSchema() {
+    String[] _columnNames = { "int" };
+    ColumnDataType[] _columnDataTypesInt = { ColumnDataType.INT };
+    DataSchema _dataSchemaInt = new DataSchema(_columnNames, _columnDataTypesInt);
+    String[] _columnNamesLong = { "int" };
+    final ColumnDataType[] _columnDataTypesLong = { ColumnDataType.LONG };
+    DataSchema _dataSchemaLong = new DataSchema(_columnNamesLong, _columnDataTypesLong);
+
+    Object[] _rowInt1 = { 1 };
+    Object[] _rowInt2 = { 1 };
+    Object[] _rowLong1 = { 1L };
+    Object[] _rowLong2 = { 1L };
+
+    QueryContext queryContext = QueryContextConverterUtils.getQueryContext(
+        "SELECT int FROM testTable order by int limit 3");
+    List<Object[]> mergedRows = new ArrayList<>(1);
+    mergedRows.add(_rowInt1);
+    mergedRows.add(_rowInt2);
+    SelectionResultsBlock mergedBlock = new SelectionResultsBlock(_dataSchemaInt, mergedRows, queryContext);
+    List<Object[]> rowsToMerge = new ArrayList<>(1);
+    rowsToMerge.add(_rowLong1);
+    rowsToMerge.add(_rowLong2);
+    SelectionResultsBlock blockToMerge = new SelectionResultsBlock(_dataSchemaLong, rowsToMerge, queryContext);
+
+    // Test SelectionOrderByResultsBlockMerger converts INT to LONG schema
+    SelectionOrderByResultsBlockMerger selectionOrderByResultsBlockMerger = new SelectionOrderByResultsBlockMerger(queryContext);
+    selectionOrderByResultsBlockMerger.mergeResultsBlocks(mergedBlock, blockToMerge);
+    assertEquals(mergedBlock.getDataSchema(), _dataSchemaLong);
+
+    // Test SelectionOperatorUtils converts and merges INT to LONG rows
+    SelectionOperatorUtils.mergeWithOrdering(mergedBlock, blockToMerge, 3);
+    assertEquals(mergedRows.size(), 3);
+    assertEquals(mergedRows.get(0)[0], 1L);
+    assertEquals(mergedRows.get(1)[0], 1L);
+    assertEquals(mergedRows.get(2)[0], 1L);
   }
 }

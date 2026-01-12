@@ -41,14 +41,11 @@ public class SelectionOrderByResultsBlockMerger implements ResultsBlockMerger<Se
     DataSchema mergedDataSchema = mergedBlock.getDataSchema();
     DataSchema dataSchemaToMerge = blockToMerge.getDataSchema();
     assert mergedDataSchema != null && dataSchemaToMerge != null;
-    if (!mergedDataSchema.equals(dataSchemaToMerge)) {
-      String errorMessage =
-          String.format("Data schema mismatch between merged block: %s and block to merge: %s, drop block to merge",
-              mergedDataSchema, dataSchemaToMerge);
-      // NOTE: This is segment level log, so log at debug level to prevent flooding the log.
-      LOGGER.debug(errorMessage);
-      mergedBlock.addErrorMessage(QueryErrorMessage.safeMsg(QueryErrorCode.MERGE_RESPONSE, errorMessage));
-      return;
+    for (int i = 0; i < mergedDataSchema.getColumnDataTypes().length; i++) {
+      if (mergedDataSchema.getColumnDataType(i) == DataSchema.ColumnDataType.INT
+          && dataSchemaToMerge.getColumnDataType(i) == DataSchema.ColumnDataType.LONG) {
+        mergedDataSchema.setColumnDataType(i, DataSchema.ColumnDataType.LONG);
+      }
     }
     SelectionOperatorUtils.mergeWithOrdering(mergedBlock, blockToMerge, _numRowsToKeep);
   }
